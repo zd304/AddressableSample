@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Networking;
+using System.Xml;
 
 public class Test : MonoBehaviour
 {
@@ -15,32 +16,11 @@ public class Test : MonoBehaviour
     string error;
     Vector2 scrollPos = Vector2.zero;
 
-    string CopyDestDir
-    {
-        get
-        {
-#if UNITY_EDITOR
-            return Application.persistentDataPath;
-#else
-
-#if UNITY_ANDROID
-            return "/storage/emulated/0/Android/data/com.zd304.testaddressable/files";
-#elif UNITY_IOS
-#endif
-
-#endif
-        }
-    }
-
     private void Awake()
     {
         Application.logMessageReceived += HandleLog;
 
-        Debug.LogError("++ " + Application.persistentDataPath + " ++");
-
-        Debug.LogError(" --- " + Addressables.BuildPath + " --- " + Addressables.RuntimePath);
-
-        StartCoroutine(CopyFromCache(Application.streamingAssetsPath + "/Bundles/Android", Application.persistentDataPath + "/Bundles"));
+        StartCoroutine(CopyFromCache(Application.streamingAssetsPath, Application.persistentDataPath + "/Bundles"));
     }
 
     private void OnDestroy()
@@ -68,11 +48,44 @@ public class Test : MonoBehaviour
             yield break;
         }
 
-        Directory.CreateDirectory(destDir);
+        UnityWebRequest request = UnityWebRequest.Get(srcDir + "/Bundles/Package.data");
+        yield return request.SendWebRequest();
 
-        yield return CopyFromCacheFile(srcDir + "/catalog_2020.05.30.08.29.21.json", destDir + "/catalog_2020.05.30.08.29.21.json");
-        yield return CopyFromCacheFile(srcDir + "/catalog_2020.05.30.08.29.21.hash", destDir + "/catalog_2020.05.30.08.29.21.hash");
-        yield return CopyFromCacheFile(srcDir + "/res_assets_all_81c9c1a7a7a6a2e31e4cf2a132299abe.bundle", destDir + "/res_assets_all_81c9c1a7a7a6a2e31e4cf2a132299abe.bundle");
+        if (request.error == null)
+        {
+            Directory.CreateDirectory(destDir);
+
+            string text = request.downloadHandler.text;
+            if (!string.IsNullOrEmpty(text))
+            {
+                XmlDocument doc = new XmlDocument();
+                doc.LoadXml(text);
+
+                XmlNode rootNode = doc.SelectSingleNode("Root");
+
+                for (int i = 0; i < rootNode.ChildNodes.Count; ++i)
+                {
+                    XmlElement filesEle = rootNode.ChildNodes[i] as XmlElement;
+                    if (filesEle.Name == "Files")
+                    {
+                        for (int j = 0; j < filesEle.ChildNodes.Count; ++j)
+                        {
+                            XmlElement fileEle = filesEle.ChildNodes[j] as XmlElement;
+                            if (fileEle.Name == "File")
+                            {
+                                string dir = fileEle.GetAttribute("dir");
+                                string name = fileEle.GetAttribute("name");
+                                yield return CopyFromCacheFile(srcDir + "/" + dir + "/" + name, destDir + "/" + name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            Debug.LogError("没有这个文件：" + srcDir + "/Package.data" + " --- " + request.error);
+        }
 
         copyOver = true;
     }
