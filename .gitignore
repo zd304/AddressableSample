@@ -6,3 +6,5 @@ Temp
 /*.sln
 /Assets/AddressableAssetsData/Android/addressables_content_state.bin
 /Assets/AddressableAssetsData/Android/addressables_content_state.bin.meta
+StreamingAssets
+/Assets/StreamingAssets.meta
