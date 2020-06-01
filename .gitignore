@@ -1,0 +1,8 @@
+.vs
+Library
+obj
+Temp
+/*.csproj
+/*.sln
+/Assets/AddressableAssetsData/Android/addressables_content_state.bin
+/Assets/AddressableAssetsData/Android/addressables_content_state.bin.meta
